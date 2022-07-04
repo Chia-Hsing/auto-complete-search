@@ -14,7 +14,7 @@ export const getSuggestions = (keyword: string) => {
     const searchUrl = `${baseUrl}?q=${keyword}&per_page=10&page=1`;
 
     return ajax(searchUrl).pipe(
-        map((response) => response.response.items),
+        map((response: any) => response.response.items),
         map(toSuggestionList)
     );
 };
@@ -31,7 +31,7 @@ export const getSearchResult = (keyword: string, sort: string = 'stars', order =
     const searchUrl = `${baseUrl}?q=${keyword}&sort=${sort}&order=${order}&page=${page}&per_page=${perPage}`;
 
     return ajax(searchUrl).pipe(
-        map((response) => response.response.items),
+        map((response: any) => response.response.items),
         map(toSearchResult)
     );
 };
