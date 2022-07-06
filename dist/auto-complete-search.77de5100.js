@@ -12854,13 +12854,64 @@ var rxjs_1 = require("rxjs");
 var keywordInput = document.querySelector('#keyword');
 var keyword$ = (0, rxjs_1.fromEvent)(keywordInput, 'input').pipe((0, rxjs_1.map)(function (e) {
   return e.target.value;
-}));
+}), (0, rxjs_1.startWith)(''), (0, rxjs_1.shareReplay)(1));
 keyword$.pipe((0, rxjs_1.debounceTime)(700), (0, rxjs_1.distinctUntilChanged)(), (0, rxjs_1.filter)(function (keyword) {
   return keyword.length > 3;
 }), (0, rxjs_1.switchMap)(function (keyword) {
   return dataUtils.getSuggestions(keyword);
 })).subscribe(function (suggestions) {
   domUtils.fillAutoSuggestions(suggestions);
+});
+var search = document.querySelector('#search');
+var search$ = (0, rxjs_1.fromEvent)(search, 'click');
+var keywordForSearch$ = keyword$.pipe((0, rxjs_1.take)(1));
+var searchByKeyword$ = search$.pipe((0, rxjs_1.switchMap)(function () {
+  return keywordForSearch$;
+}), (0, rxjs_1.filter)(function (keyword) {
+  return !!keyword;
+}));
+searchByKeyword$.pipe((0, rxjs_1.switchMap)(function (keyword) {
+  return dataUtils.getSearchResult(keyword);
+})).subscribe(function (result) {
+  domUtils.fillSearchResult(result);
+});
+var sortBy$ = new rxjs_1.BehaviorSubject({
+  sort: 'stars',
+  order: 'desc'
+});
+console.log('🧬 ~ sortBy$', sortBy$);
+
+var changeSort = function changeSort(sortField) {
+  if (sortField === sortBy$.value.sort) {
+    sortBy$.next({
+      sort: sortField,
+      order: sortBy$.value.order === 'desc' ? 'asc' : 'desc'
+    });
+  } else {
+    sortBy$.next({
+      sort: sortField,
+      order: 'desc'
+    });
+  }
+};
+
+var stars = document.querySelector('#sort-stars');
+var forks = document.querySelector('#sort-forks');
+(0, rxjs_1.fromEvent)(stars, 'click').subscribe(function () {
+  changeSort('stars');
+});
+(0, rxjs_1.fromEvent)(forks, 'click').subscribe(function () {
+  changeSort('forks');
+});
+sortBy$.pipe((0, rxjs_1.filter)(function (sort) {
+  return sort.sort === 'stars';
+})).subscribe(function (sort) {
+  domUtils.updateStarsSort(sort);
+});
+sortBy$.pipe((0, rxjs_1.filter)(function (sort) {
+  return sort.sort === 'forks';
+})).subscribe(function (sort) {
+  domUtils.updateForksSort(sort);
 });
 },{"./dom-utils":"dom-utils.ts","./data-utils":"data-utils.ts","rxjs":"node_modules/rxjs/dist/esm5/index.js"}],"../../../../../usr/local/lib/node_modules/parcel-bundler/src/builtins/hmr-runtime.js":[function(require,module,exports) {
 var global = arguments[3];
@@ -12890,7 +12941,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "65427" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "63171" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};
