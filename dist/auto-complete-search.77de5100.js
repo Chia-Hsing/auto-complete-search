@@ -12849,12 +12849,16 @@ var domUtils = __importStar(require("./dom-utils"));
 
 var dataUtils = __importStar(require("./data-utils"));
 
-var rxjs_1 = require("rxjs");
+var rxjs_1 = require("rxjs"); // 取得輸入框資料流
+
 
 var keywordInput = document.querySelector('#keyword');
 var keyword$ = (0, rxjs_1.fromEvent)(keywordInput, 'input').pipe((0, rxjs_1.map)(function (e) {
   return e.target.value;
-}), (0, rxjs_1.startWith)(''), (0, rxjs_1.shareReplay)(1));
+}), (0, rxjs_1.startWith)(''), // 按下搜尋時會轉換成輸入框的資料，但因為沒有下一次的資料輸入，所以不會有動作。
+// 要等待新事件發生，才進行搜尋。這邊重播一次最近的輸入框資料，觸發事件發生。
+(0, rxjs_1.shareReplay)(1)); // 自動搜尋並顯示結果
+
 keyword$.pipe((0, rxjs_1.debounceTime)(700), (0, rxjs_1.distinctUntilChanged)(), (0, rxjs_1.filter)(function (keyword) {
   return keyword.length > 3;
 }), (0, rxjs_1.switchMap)(function (keyword) {
@@ -12863,23 +12867,25 @@ keyword$.pipe((0, rxjs_1.debounceTime)(700), (0, rxjs_1.distinctUntilChanged)(),
   domUtils.fillAutoSuggestions(suggestions);
 });
 var search = document.querySelector('#search');
-var search$ = (0, rxjs_1.fromEvent)(search, 'click');
+var search$ = (0, rxjs_1.fromEvent)(search, 'click'); // 每次只取一次的輸入資料，不然 input 的資料流不會終止
+
 var keywordForSearch$ = keyword$.pipe((0, rxjs_1.take)(1));
 var searchByKeyword$ = search$.pipe((0, rxjs_1.switchMap)(function () {
   return keywordForSearch$;
-}), (0, rxjs_1.filter)(function (keyword) {
+}), // 避免按下搜尋按鈕早於輸入框有資料
+(0, rxjs_1.filter)(function (keyword) {
   return !!keyword;
 }));
 searchByKeyword$.pipe((0, rxjs_1.switchMap)(function (keyword) {
   return dataUtils.getSearchResult(keyword);
 })).subscribe(function (result) {
   domUtils.fillSearchResult(result);
-});
+}); // 實作排序
+
 var sortBy$ = new rxjs_1.BehaviorSubject({
   sort: 'stars',
   order: 'desc'
 });
-console.log('🧬 ~ sortBy$', sortBy$);
 
 var changeSort = function changeSort(sortField) {
   if (sortField === sortBy$.value.sort) {
@@ -12913,6 +12919,72 @@ sortBy$.pipe((0, rxjs_1.filter)(function (sort) {
 })).subscribe(function (sort) {
   domUtils.updateForksSort(sort);
 });
+var pages = document.querySelector('#per-page');
+var pre = document.querySelector('#previous-page');
+var next = document.querySelector('#next-page');
+var perPage$ = (0, rxjs_1.fromEvent)(pages, 'change').pipe((0, rxjs_1.map)(function (event) {
+  return +event.target.value;
+}), (0, rxjs_1.startWith)(10));
+var prePage$ = (0, rxjs_1.fromEvent)(pre, 'click').pipe((0, rxjs_1.map)(function (v) {
+  return -1;
+}));
+var nextPage$ = (0, rxjs_1.fromEvent)(next, 'click').pipe((0, rxjs_1.map)(function (v) {
+  return 1;
+}));
+var page$ = (0, rxjs_1.merge)(prePage$, nextPage$).pipe((0, rxjs_1.scan)(function (currentPageIndex, value) {
+  var nextPage = currentPageIndex + value;
+  return nextPage < 1 ? 1 : nextPage;
+}, 1));
+page$.subscribe(function (page) {
+  domUtils.updatePageNumber(page);
+});
+sortBy$.pipe((0, rxjs_1.filter)(function (sort) {
+  return sort.sort === 'stars';
+})).subscribe(function (sort) {
+  domUtils.updateStarsSort(sort);
+});
+sortBy$.pipe((0, rxjs_1.filter)(function (sort) {
+  return sort.sort === 'forks';
+})).subscribe(function (sort) {
+  domUtils.updateForksSort(sort);
+});
+var startSearch$ = (0, rxjs_1.combineLatest)([searchByKeyword$, sortBy$, page$.pipe((0, rxjs_1.startWith)(1)), perPage$.pipe((0, rxjs_1.startWith)(10))]);
+startSearch$.subscribe(function () {
+  domUtils.loading();
+});
+
+var getSearchResult = function getSearchResult(keyword, sort, order, page, perPage) {
+  return dataUtils.getSearchResult(keyword, sort, order, page, perPage).pipe((0, rxjs_1.map)(function (result) {
+    return {
+      success: true,
+      message: null,
+      data: result
+    };
+  }), (0, rxjs_1.catchError)(function (error) {
+    return (0, rxjs_1.of)({
+      success: false,
+      message: error.response.message,
+      data: []
+    });
+  }));
+};
+
+var searchResult$ = startSearch$.pipe((0, rxjs_1.switchMap)(function (_a) {
+  var keyword = _a[0],
+      sort = _a[1],
+      page = _a[2],
+      perPage = _a[3];
+  return getSearchResult(keyword, sort.sort, sort.order, page, perPage);
+}), (0, rxjs_1.share)());
+searchResult$.subscribe(function (result) {
+  domUtils.fillSearchResult(result.data);
+  domUtils.loaded();
+});
+searchResult$.pipe((0, rxjs_1.filter)(function (result) {
+  return !result.success;
+})).subscribe(function (result) {
+  alert(result.message);
+});
 },{"./dom-utils":"dom-utils.ts","./data-utils":"data-utils.ts","rxjs":"node_modules/rxjs/dist/esm5/index.js"}],"../../../../../usr/local/lib/node_modules/parcel-bundler/src/builtins/hmr-runtime.js":[function(require,module,exports) {
 var global = arguments[3];
 var OVERLAY_ID = '__parcel__error__overlay__';
@@ -12941,7 +13013,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "63171" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "57298" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};
